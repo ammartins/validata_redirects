@@ -2,46 +2,63 @@
 
 use strict;
 
-open FH, '<', 'redirect2.txt' or die('Not able to open file');
-open FH2, '>', '3012.txt' or die("Not able to find the file");
-open FH3, '>', '2002.txt' or die("Not able to find the file");
-open FH404, '>', '4042.txt' or die("Not able to find the file");
-open FH4, '>', 'other2.txt' or die("Not able to find the file");
+open FH, '<', 'redirect.txt' or die('Not able to open file');
+open OU, '>', 'redirectFinal.txt' or die('Not able to create file');
+
+# Http 3XX codes
+# 300
+# 301
+# 302
+# 303
+# 304
+# 305
+# 306
+# 307
+
 
 sub getUrls {
     my $first;
     my $url;
     my $response;
+    my $rebuildLine;
     my $count = 0;
     while ( <FH> ) {
-        print "\n\n Line Number $count \n\n";
-        $count = $count +1;
-        $_ =~ m/(Redirect|RedirectMatch)\s301\s.*\s(\/.*|http:.*)/g;
-        #$_ =~ m/Redirect\s301\s.*\s(\/.*)/g;
-        $first = $2;
-
-        if ( !($first =~ m/http:\/\//g or $first =~ m/https:\/\//g) ) {
-            $url = "http://www.leaseweb.com".$first."\n";
-        } else {
-            $url = $first;
+        my $line = $_;
+        if ( $line =~ m/\n\n|#.*/g ) {
+            print OU $line;
+            next;
         }
+        elsif ( $line =~ m/Redirect/ ) {
+            print "\n\n Line Number $count $line \n\n";
+            $count = $count +1;
+            $_ =~ m[(Redirect|RedirectMatch)\s(3\d\d|permanent)\s(.*)\s(/.*|http://.*|https://.*)]g;
+            $rebuildLine = $1." ".$2." ".$3." ";
+            $first = $4;
 
-        
-        $response = getCurl($url, '-I');
-        #$response = system("curl $url");
+            if ( !($first =~ m/http:\/\//g or $first =~ m/https:\/\//g) ) {
+                $url = "http://www.leaseweb.com".$first."\n";
+            } else {
+                $url = $first;
+            }
 
-        if ( $response =~ m/301/g ) {
-            my $correctUrl = getNewResponse($url);
-            print FH2 $_." ".$correctUrl."\n";
-        }
-        elsif ( $response =~ m/200/g ) {
-            print FH3 $_;
-        }
-        elsif ( $response =~ m/404/g ) {
-            print FH404 $_;
+            $response = getCurl($url, '-I');
+
+            if ( $response =~ m/301/g ) {
+                my $correctUrl = getNewResponse($url);
+                print OU $rebuildLine.$correctUrl;
+            }
+            elsif ( $response =~ m/200/g ) {
+                print OU $_;
+            }
+            elsif ( $response =~ m/404/g ) {
+                print OU '# 404 - '.$_;
+            }
+            else {
+                print OU $_;
+            }
         }
         else {
-            print FH4 $_;
+            print OU "\n";
         }
     }
 }
