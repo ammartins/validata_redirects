@@ -45,13 +45,14 @@ sub getUrls {
 
             if ( $response =~ m/301/g ) {
                 my $correctUrl = getNewResponse($url);
+                print "\n\n\n c - $correctUrl \n\n\n";
                 print OU $rebuildLine.$correctUrl;
             }
             elsif ( $response =~ m/200/g ) {
                 print OU $_;
             }
             elsif ( $response =~ m/404/g ) {
-                print OU '# 404 - '.$_;
+                next;
             }
             else {
                 print OU $_;
@@ -67,13 +68,14 @@ sub getNewResponse {
     my $url = shift;
     my $finalUrl;
     print "\n Getting a new url $url \n";
-    if ( getCurl($url, '-I') =~ m/301/g ) {
-        my $response = getCurl($url, '');
-        $response =~ m/((https|http):\/\/.*)\"/g;
+    my $curlResponse = getCurl($url, '-I');
+    if ( $curlResponse =~ m/301/g ) {
+        $curlResponse =~ m/Location:\s(.*)/g;
         $finalUrl = $1;
         getNewResponse($finalUrl);
+    } else {
+        return $url if ( $curlResponse =~ m/200/g );
     }
-    return $finalUrl;
 }
 
 sub getCurl {
